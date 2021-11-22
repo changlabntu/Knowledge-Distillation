@@ -2,12 +2,14 @@ from tqdm import tqdm
 
 import torch
 from torch import nn, optim
+import torch.nn.functional as F
 
 import torchvision
 from torchvision.models.resnet import ResNet, BasicBlock
 from torchvision import datasets, transforms
 
 from inference_pipeline import inference_pipeline
+
 
 class TeacherModel(ResNet):
     def __init__(self):
@@ -17,6 +19,14 @@ class TeacherModel(ResNet):
             stride=(2, 2),
             padding=(3, 3), bias=False)
 
+    def forward(self, batch, temperature=1):
+        logits = super(TeacherModel, self).forward(batch)
+        logits = logits / temperature
+        prob = F.softmax(logits, dim=0)
+        log_prob = F.log_softmax(logits, dim=0)
+        return {"logits":logits, "prob":prob, "log_prob":log_prob}
+
+
 def train(model, train_loader, optimizer, loss_function, device):
     total_loss = 0
     model.train()
@@ -25,7 +35,7 @@ def train(model, train_loader, optimizer, loss_function, device):
         X, y = data[0].to(device), data[1].to(device)
         optimizer.zero_grad()
         outputs = model(X)
-        loss = loss_function(outputs, y)
+        loss = loss_function(outputs['prob'], y)
         loss.backward()
         optimizer.step()
         current_loss = loss.item()
@@ -43,8 +53,8 @@ def main():
               ])
     train_kwargs = {'batch_size': 64, 'num_workers': 4}
     test_kwargs = {'batch_size': 1000, 'num_workers': 4}
-    train_dataset = datasets.MNIST('./data', train=True, download=False, transform=transform)
-    test_dataset = datasets.MNIST('./data', train=False, transform=transform)
+    train_dataset = datasets.MNIST('home/ghc/Dataset', train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST('home/ghc/Dataset', train=False, transform=transform)
     train_loader = torch.utils.data.DataLoader(train_dataset,**train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
@@ -58,7 +68,7 @@ def main():
         result = inference_pipeline_example.run_inference_pipeline(model, test_loader)
         val_acc = result["inference_result"]
         print(f"epoch {epoch}, validation accuracy = {val_acc} \n")
-    torch.save(model.state_dict(), "./saved_model/resnet34_teacher.pt")
+    torch.save(model.state_dict(), "../../saved_model/resnet34_teacher.pt")
 
 
 if __name__ == "__main__":

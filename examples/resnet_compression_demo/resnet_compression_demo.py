@@ -12,6 +12,7 @@ from torchvision import datasets, transforms
 from inference_pipeline import inference_pipeline
 from knowledge_distillation.kd_training import KnowledgeDistillationTraining
 
+
 class StudentModel(ResNet):
     def __init__(self):
         super(StudentModel, self).__init__(BasicBlock, [2, 2, 2, 2], num_classes=10) #ResNet18
@@ -58,8 +59,8 @@ def main():
               ])
     train_kwargs = {'batch_size': 64, 'num_workers': 0}
     test_kwargs = {'batch_size': 1000, 'num_workers': 0}
-    train_dataset = datasets.MNIST('/home/datasets/', train=True, download=False, transform=transform)
-    test_dataset = datasets.MNIST('/home/datasets/', train=False, transform=transform)
+    train_dataset = datasets.MNIST('home/ghc/Dataset/', train=True, download=True, transform=transform)
+    test_dataset = datasets.MNIST('home/ghc/Dataset/', train=False, transform=transform)
     train_data_loader = torch.utils.data.DataLoader(train_dataset, collate_fn=get_data_for_kd_training, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
     val_data_loaders = {"mnist_test": test_loader}
@@ -70,7 +71,7 @@ def main():
     # Create student and teacher model
     student_model = StudentModel()
     teacher_model = TeacherModel()
-    teacher_model.load_state_dict(torch.load("./saved_model/resnet34_teacher.pt"))
+    teacher_model.load_state_dict(torch.load("saved_model/resnet34_teacher.pt"))
 
     # Train a student model with knowledge distillation and get its performance on dev set
     KD_resnet = KnowledgeDistillationTraining(train_data_loader = train_data_loader,
